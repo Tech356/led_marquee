@@ -3,20 +3,15 @@
 //Green:  2 Serial
 //Yellow: 3 Clock
 //Brown:  4 Storage/Latch
-//Blue:   5 OutputEnable - active low 
-
-//Sprite Q(Texture2D(5, 5, B11111, B11101, B10001, B10111, B11111), 0, 1);
-//Sprite X(Texture2D(5, 5, B11111, B10101, B11011, B10101, B11111), 50, 1);
-//Sprite Y(Texture2D(5, 5, B10101, B00100, B11011, B00100, B10101), 45, 1);
-//Sprite Z(Texture2D(5, 5, B10001, B10101, B11111, B10101, B10001), 40, 1);
+//Blue:   5 OutputEnable - active low
 
 const byte DataPin = 2;
 const byte ClockPin = 3;
 const byte LatchPin = 4;
 const byte OutputEnable = 5;
 
-const byte ScrollSpeedPin = 0;
-const byte SecondPot = 1;
+const byte ScrollSpeedPinLarge = 0;
+const byte ScrollSpeedPinSmall = 1;
 
 LedArray Display(DataPin, ClockPin, LatchPin);
 
@@ -25,171 +20,133 @@ long interval =  80;
 
 const char proto[] = "MESSAGE:";
 
-const byte MAX_STRING_LENGTH = 128;
+const byte MAX_STRING_LENGTH = 220;
 
-char CurrentText[MAX_STRING_LENGTH] = "The Cake is a Lie";
-byte CurrentLenght = 17;
-//char CurrentText[MAX_STRING_LENGTH] = "AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz!\"#$%&`()*+'-./0123456789:;<=>?@[]\\^_{|}~";
-//byte CurrentLenght = 95;
-char IncomingText[MAX_STRING_LENGTH];
-byte IncomingLenght = 0;
+#define __NUM_TEXT_BUFFERS__ 2
+char TextBuffers[__NUM_TEXT_BUFFERS__][MAX_STRING_LENGTH] = {"The Cake is a Lie" , "The Cake is a Lie."};
+byte BufferLenghts[__NUM_TEXT_BUFFERS__] = {17, 18};
+// This buffer index is not actually active,
+// it is more just a var to store a ref to a buffer
+// the name is probably very misleading
+byte ActiveBufferIndex = 0;
+
 byte IncomingIndex = 0;
-bool NewMessage = false;
-bool NewSecond = false;
-bool NewThird = false;
 
-int strPos = 72;
+int firstStrPos = 72;
+int newStrPos = 73;
+// the distance between the 2 strings
+int offset = 20;
 
-// ======== Main ========
-void setup()
-{
+void setup() {
   pinMode(OutputEnable, OUTPUT);
   digitalWrite(OutputEnable, LOW);
-  
-  Display.Begin();  
+  pinMode(13, OUTPUT);
 
-  Serial_Wait();
+  Display.Begin();
+  Serial.begin(38400);
 }
 
-void loop()
-{  
+void loop() {
   //millis() will wrap after ~50 days
   long currentMillis = millis();
   if (currentMillis - previousMillis > interval || currentMillis < previousMillis) {
-    previousMillis = millis();
+    previousMillis = currentMillis;
     digitalWrite(OutputEnable, HIGH);
     Update();
     digitalWrite(OutputEnable, LOW);
   }
 
-  Display.Show(); 
- 
+  Display.Show();
+
+  if (ActiveBufferIndex == 1)
+    digitalWrite(13, HIGH);
+  else
+    digitalWrite(13, LOW);
+
  //set scroll speed based on Pot
  // map the interval range from 0ms to 200ms
- interval = map(analogRead(ScrollSpeedPin), 0, 1023, 0, 200);
- 
+ interval = map(analogRead(ScrollSpeedPinLarge), 0, 1023, 0, 200);
+ interval += map(analogRead(ScrollSpeedPinSmall), 0, 1023, 0, 40);
 }
 
-// ============ Functions ===================
-
-
-//TODO:
-//  update font2 to diff withs
-//    create length array
-//  update text looping
-
-void Update()
-{
+void Update() {
+  //Serial.println("UPDATE: --Start-- ");
   Display.ClearBuffer();
-  
-  if (Serial.available() > 0) 
+
+  if (Serial.available() > 0)
     GetSerialData();
-  
 
-  strPos--;
-  
-  // +CurrentLenght for the spaces between the chars 
-  // --MINUS Spaces! * 2--
-  int CurrentStrLenghtInPixels = CurrentLenght * 5 + CurrentLenght - 1;
-  int IncomingStrLenghtInPixels = IncomingLenght * 5 + IncomingLenght - 1;
+  firstStrPos--;
+  newStrPos--;
 
-  // end of first string
-  int endOfStr = strPos + CurrentStrLenghtInPixels;
+  int CurrentStringPosition = firstStrPos;
+  //Serial.print("UPDATE: CurrentStringPosition: ");
+  //Serial.println(CurrentStringPosition, DEC);
+  while (CurrentStringPosition <= 72) {
+    //Serial.println("UPDATE: WHILE: --Start-- ");
+    //Serial.print("UPDATE: WHILE: CurrentStringPosition: ");
+    //Serial.println(CurrentStringPosition, DEC);
 
-  // the distance between the 2 strings
-  int offset = 20;
-  
-  if (endOfStr < 0)
-  {
-    strPos = endOfStr + offset;
-    if (NewSecond)
-    {
-      //copy incoming to current
-      for(int i = 0; i < IncomingLenght + 1 && i < MAX_STRING_LENGTH; i++)        
-          CurrentText[i] = IncomingText[i];  
-      CurrentLenght = IncomingLenght;
-      
-      NewMessage = false;
-      NewSecond = false;
-      NewThird = false;
+    byte bufferIndex = ActiveBufferIndex;
+    if (CurrentStringPosition >= newStrPos && BufferLenghts[(ActiveBufferIndex + 1) % __NUM_TEXT_BUFFERS__] != 0)
+      bufferIndex = (ActiveBufferIndex + 1) % __NUM_TEXT_BUFFERS__;
+
+    //Serial.print("UPDATE: WHILE: Active Buffer Index ");
+    //Serial.println(bufferIndex, DEC);
+
+    int endOfStr = CurrentStringPosition + (BufferLenghts[bufferIndex] * 5 + BufferLenghts[bufferIndex] - 1); //CurrentStringPosition + length of str in pixels
+    //Serial.print("UPDATE: WHILE: endOfStr: ");
+    //Serial.println(endOfStr, DEC);
+    if (endOfStr < 0) {
+      // if this string is not on screen, move positions and comtinue
+      //Serial.println("UPDATE: WHILE: end of Str < 0");
+      CurrentStringPosition = endOfStr + offset;
+      firstStrPos = CurrentStringPosition;
+    } else {
+      //Serial.println("UPDATE: WHILE: Drawing String ");
+      Display.DrawString(TextBuffers[bufferIndex], BufferLenghts[bufferIndex], CurrentStringPosition);
+      CurrentStringPosition = endOfStr + offset;
     }
-    endOfStr = strPos + CurrentLenght * 5 + CurrentLenght - 1;
+    //Serial.println("UPDATE: WHILE: ---End--- ");
   }
-  
-  //I am assuming that only 3 strings would fit on the board at one time
-  //Draw First String
-  Display.DrawString(CurrentText, CurrentLenght, strPos);
-  
-  //Draw Second String
-  if ((NewMessage && endOfStr + offset > 71) || NewSecond)
-    NewSecond = true;
-    
-  if (NewSecond)
-    Display.DrawString(IncomingText, IncomingLenght, endOfStr + offset); 
-  else
-    Display.DrawString(CurrentText, CurrentLenght, endOfStr + offset);      
-    
-  //Draw Third String
-  if (NewMessage && endOfStr + offset > 71)
-    NewThird = true;
-    
-  if (NewThird)
-  {
-    if (NewSecond)
-      Display.DrawString(IncomingText, IncomingLenght, endOfStr + offset + IncomingStrLenghtInPixels + offset);
-    else
-      Display.DrawString(IncomingText, IncomingLenght, endOfStr + offset + CurrentStrLenghtInPixels + offset);
-  }
-  else
-    Display.DrawString(CurrentText, CurrentLenght, endOfStr + offset + CurrentStrLenghtInPixels + offset);
+  //Serial.println("UPDATE: ---End--- ");
 }
 
-void Serial_Wait()
-{
-  delay(5000);
-  Serial.begin(38400);
-}
-
-void GetSerialData()
-{
-  if (NewMessage)
-  {
+void GetSerialData() {
+  // if there is not an available buffer, do nothing
+  if (newStrPos >= -(BufferLenghts[ActiveBufferIndex] * 5 + BufferLenghts[ActiveBufferIndex] - 1)) {
     Serial.flush();
     return;
   }
-  
-  //Display.DrawString("B", 1, 67);
-  while(Serial.available() > 0) {	
-    IncomingText[IncomingIndex] = Serial.read();
-    IncomingText[IncomingIndex + 1] = '\0';
-    if (IncomingText[IncomingIndex] == 13 || IncomingIndex == 127 || IncomingText[IncomingIndex] == 10)
-    {
-      Serial.println("NULL found");
-      //Display.DrawString("N", 1, 60);
-      
+
+  byte availableBufferIndex = ActiveBufferIndex;
+  while(Serial.available() > 0) {
+    TextBuffers[availableBufferIndex][IncomingIndex] = Serial.read();
+    TextBuffers[availableBufferIndex][IncomingIndex + 1] = '\0';
+    if (TextBuffers[availableBufferIndex][IncomingIndex] == 13 || IncomingIndex == MAX_STRING_LENGTH - 1 || TextBuffers[availableBufferIndex][IncomingIndex] == 10) {
+      //Serial.println("NULL found");
+
       bool isMessage = true;
-      for (int k = 0; k < 8; k++)
-      {                   
-        if (IncomingText[k] != proto[k])          
+      for (int k = 0; k < 8; k++) {
+        if (TextBuffers[availableBufferIndex][k] != proto[k])
           isMessage = false;
       }
-      
-      if (isMessage)
-      {
-        Serial.println("Message found");
-        Serial.println(IncomingIndex, DEC);
-        IncomingLenght = IncomingIndex - 8; //minus 8 for the "MESSAGE:"
-        for(int i = 0; i < IncomingIndex + 1 && i < MAX_STRING_LENGTH; i++)        
-          IncomingText[i] = IncomingText[i + 8];  
-        
-        NewMessage = true;
+
+      if (isMessage) {
+        //Serial.println("Message found");
+        //Serial.println(IncomingIndex, DEC);
+        BufferLenghts[availableBufferIndex] = IncomingIndex - 8; //minus 8 for the "MESSAGE:"
+        for(int i = 0; i < IncomingIndex + 1 && i < MAX_STRING_LENGTH; i++)
+          TextBuffers[availableBufferIndex][i] = TextBuffers[availableBufferIndex][i + 8];
+
+        newStrPos = 73;
+        ActiveBufferIndex = (ActiveBufferIndex + 1) % __NUM_TEXT_BUFFERS__;
       }
-      
+
       IncomingIndex = 0;
       break;
     }
     IncomingIndex++;
-  }    
-  Serial.println(IncomingText);
+  }
+  //Serial.println(TextBuffers[availableBufferIndex]);
 }
-
