@@ -1,4 +1,6 @@
 #include <LedArray.h>
+#include <Wire.h>
+#include <Chronodot.h>
 
 //Green:  2 Serial
 //Yellow: 3 Clock
@@ -13,7 +15,16 @@ const byte OutputEnable = 5;
 const byte ScrollSpeedPinLarge = 0;
 const byte ScrollSpeedPinSmall = 1;
 
+const byte sw1Pin = 8;
+const byte sw2Pin = 9;
+const byte swPowerPin = 10;
+const byte sw3Pin = 11;
+
+
 LedArray Display(DataPin, ClockPin, LatchPin);
+Chronodot chronodot = Chronodot();
+
+bool DisplayTime = true;
 
 long previousMillis;
 long interval =  80;
@@ -42,6 +53,12 @@ void setup() {
   digitalWrite(OutputEnable, LOW);
   pinMode(13, OUTPUT);
 
+  pinMode(sw1Pin, INPUT);
+  pinMode(sw2Pin, INPUT);
+  pinMode(sw3Pin, INPUT);
+  pinMode(swPowerPin, OUTPUT);
+  digitalWrite(swPowerPin, HIGH);
+
   Display.Begin();
   Serial.begin(38400);
 }
@@ -63,54 +80,139 @@ void loop() {
   else
     digitalWrite(13, LOW);
 
- //set scroll speed based on Pot
- // map the interval range from 0ms to 200ms
- interval = map(analogRead(ScrollSpeedPinLarge), 0, 1023, 0, 200);
- interval += map(analogRead(ScrollSpeedPinSmall), 0, 1023, 0, 40);
+  //set scroll speed based on Pot
+  // map the interval range from 0ms to 200ms
+  if (DisplayTime) {
+    interval = 500;
+  } else {
+    interval = map(analogRead(ScrollSpeedPinLarge), 0, 1023, 0, 200);
+    interval += map(analogRead(ScrollSpeedPinSmall), 0, 1023, 0, 40);
+  }
+
+  if (digitalRead(sw1Pin)  == HIGH)
+    DisplayTime = true;
+  else
+    DisplayTime = false;
+}
+
+char* NumberToChar(byte num) {
+  switch (num)
+  {
+    case 0:
+      return "0";
+    case 1:
+      return "1";
+    case 2:
+      return "2";
+    case 3:
+      return "3";
+    case 4:
+      return "4";
+    case 5:
+      return "5";
+    case 6:
+      return "6";
+    case 7:
+      return "7";
+    case 8:
+      return "8";
+    case 9:
+      return "9";
+  }
 }
 
 void Update() {
-  //Serial.println("UPDATE: --Start-- ");
   Display.ClearBuffer();
 
-  if (Serial.available() > 0)
-    GetSerialData();
+  if (DisplayTime) {
+    chronodot.readTimeDate();
 
-  firstStrPos--;
-  newStrPos--;
+    byte currentPos = 4;
+    char timeString[8];
 
-  int CurrentStringPosition = firstStrPos;
-  //Serial.print("UPDATE: CurrentStringPosition: ");
-  //Serial.println(CurrentStringPosition, DEC);
-  while (CurrentStringPosition <= 72) {
-    //Serial.println("UPDATE: WHILE: --Start-- ");
-    //Serial.print("UPDATE: WHILE: CurrentStringPosition: ");
-    //Serial.println(CurrentStringPosition, DEC);
+    byte hours12 = chronodot.timeDate.hours % 12;
+    if (hours12 == 0)
+      hours12 = 12;
 
-    byte bufferIndex = ActiveBufferIndex;
-    if (CurrentStringPosition >= newStrPos && BufferLenghts[(ActiveBufferIndex + 1) % __NUM_TEXT_BUFFERS__] != 0)
-      bufferIndex = (ActiveBufferIndex + 1) % __NUM_TEXT_BUFFERS__;
-
-    //Serial.print("UPDATE: WHILE: Active Buffer Index ");
-    //Serial.println(bufferIndex, DEC);
-
-    int endOfStr = CurrentStringPosition + (BufferLenghts[bufferIndex] * 5 + BufferLenghts[bufferIndex] - 1); //CurrentStringPosition + length of str in pixels
-    //Serial.print("UPDATE: WHILE: endOfStr: ");
-    //Serial.println(endOfStr, DEC);
-    if (endOfStr < 0) {
-      // if this string is not on screen, move positions and comtinue
-      //Serial.println("UPDATE: WHILE: end of Str < 0");
-      CurrentStringPosition = endOfStr + offset;
-      firstStrPos = CurrentStringPosition;
-    } else {
-      //Serial.println("UPDATE: WHILE: Drawing String ");
-      Display.DrawString(TextBuffers[bufferIndex], BufferLenghts[bufferIndex], CurrentStringPosition);
-      CurrentStringPosition = endOfStr + offset;
+    if (hours12 < 10) {
+      Display.DrawString("0", 1, currentPos);
+      currentPos += 6;
+      Display.DrawString(NumberToChar(hours12), 1, currentPos);
+      currentPos += 6;
     }
-    //Serial.println("UPDATE: WHILE: ---End--- ");
+    else {
+      Display.DrawString(NumberToChar(hours12 / 10), 1, currentPos);
+      currentPos += 6;
+      Display.DrawString(NumberToChar(hours12 % 10), 1, currentPos);
+      currentPos += 6;
+    }
+
+    Display.DrawString(":", 1, currentPos);
+    currentPos += 6;
+
+    if (chronodot.timeDate.minutes < 10) {
+      Display.DrawString("0", 1, currentPos);
+      currentPos += 6;
+      Display.DrawString(NumberToChar(chronodot.timeDate.minutes), 1, currentPos);
+      currentPos += 6;
+    }
+    else {
+      Display.DrawString(NumberToChar(chronodot.timeDate.minutes / 10), 1, currentPos);
+      currentPos += 6;
+      Display.DrawString(NumberToChar(chronodot.timeDate.minutes % 10), 1, currentPos);
+      currentPos += 6;
+    }
+
+    Display.DrawString(":", 1, currentPos);
+    currentPos += 6;
+
+    if (chronodot.timeDate.seconds < 10) {
+      Display.DrawString("0", 1, currentPos);
+      currentPos += 6;
+      Display.DrawString(NumberToChar(chronodot.timeDate.seconds), 1, currentPos);
+      currentPos += 6;
+    }
+    else {
+      Display.DrawString(NumberToChar(chronodot.timeDate.seconds / 10), 1, currentPos);
+      currentPos += 6;
+      Display.DrawString(NumberToChar(chronodot.timeDate.seconds % 10), 1, currentPos);
+      currentPos += 6;
+    }
+
+    if (chronodot.timeDate.hours < 12)
+      Display.DrawString(" AM", 3, currentPos);
+    else
+      Display.DrawString(" PM", 3, currentPos);
   }
-  //Serial.println("UPDATE: ---End--- ");
+  else {
+    if (Serial.available() > 0)
+      GetSerialData();
+
+    firstStrPos--;
+    newStrPos--;
+
+    int CurrentStringPosition = firstStrPos;
+    while (CurrentStringPosition <= 72) {
+
+      byte bufferIndex = ActiveBufferIndex;
+      if (CurrentStringPosition >= newStrPos && BufferLenghts[(ActiveBufferIndex + 1) % __NUM_TEXT_BUFFERS__] != 0)
+        bufferIndex = (ActiveBufferIndex + 1) % __NUM_TEXT_BUFFERS__;
+
+      int endOfStr = CurrentStringPosition + (BufferLenghts[bufferIndex] * 5 + BufferLenghts[bufferIndex] - 1); //CurrentStringPosition + length of str in pixels
+
+      if (endOfStr < 0) {
+        // if this string is not on screen, move positions and comtinue
+        CurrentStringPosition = endOfStr + offset;
+        firstStrPos = CurrentStringPosition;
+      } else {
+        Display.DrawString(TextBuffers[bufferIndex], BufferLenghts[bufferIndex], CurrentStringPosition);
+        CurrentStringPosition = endOfStr + offset;
+      }
+    }
+  }
 }
+
+
 
 void GetSerialData() {
   // if there is not an available buffer, do nothing
