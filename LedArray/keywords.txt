@@ -1,0 +1,7 @@
+LedArray	KEYWORD1
+ClearBuffer	KEYWORD2
+Show	KEYWORD2
+Draw	KEYWORD2
+DrawString	KEYWORD2
+Sprite	KEYWORD1
+Update	KEYWORD2
