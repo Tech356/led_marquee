@@ -24,6 +24,19 @@ void LedArray::ClearBuffer() {
       buffer[x][y] = false;
 }
 
+void LedArray::LampTest(long ms) {
+  for(int y = 0; y < 7; y++)
+    for(int x = 0; x < 72; x++)
+      buffer[x][y] = true;
+
+  long target_millis = millis() + ms;
+  while (millis() < target_millis)
+    Show();
+
+  ClearBuffer();
+  Show();
+}
+
 // Draws the buffer to the screen
 void LedArray::Show() {
   for(int y = 0; y < 7; y++)

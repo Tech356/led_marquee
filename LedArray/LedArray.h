@@ -34,6 +34,7 @@ class LedArray
     LedArray(byte DataPin, byte ClockPin, byte LatchPin);
     void Begin();
     void ClearBuffer();
+    void LampTest(long ms);
     void Show();
     void DrawString(char string[], byte textLength, int PosX);
   private:
