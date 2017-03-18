@@ -68,6 +68,18 @@ void setup() {
     Serial.println("Couldn't find RTC");
     while (1);
   }
+
+  if (rtc.lostPower()) {
+    Serial.println("RTC lost power, lets set the time!");
+    // TODO: Display Message
+  }
+
+  //Display.LampTest(60000);
+
+  //rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  //rtc.adjust(DateTime(2017, 3, 12, 1, 59, 55));
+  //rtc.adjust(DateTime(2017, 11, 5, 0, 59, 55));
+  //rtc.adjust(DateTime(2017, 3, 18, 4, 5, 25));
   Serial.println("Setup Complete");
 }
 
