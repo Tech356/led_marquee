@@ -129,11 +129,27 @@ char* NumberToChar(byte num) {
   }
 }
 
+DateTime first_sunday_on_or_after(DateTime dt) {
+    // Shift day indexes Sunday 0 -> 6, Monday 1 -> 0, ... Saturday 6 -> 5
+    uint8_t day_index = (dt.dayOfTheWeek() + 6) % 7;
+    uint8_t days_to_go = 6 - day_index;
+    if (days_to_go > 0)
+      dt = dt + TimeSpan(days_to_go, 0, 0, 0);
+    return dt;
+}
+
 void Update() {
   Display.ClearBuffer();
 
   if (DisplayTime) {
     DateTime now = rtc.now();
+
+    // Check Daylight Savings Time
+    DateTime dst_start = first_sunday_on_or_after(DateTime(now.year(), 3, 8, 2));
+    DateTime dst_end = first_sunday_on_or_after(DateTime(now.year(), 11, 1, 1));  // minus 1 hour for the DST difference
+
+    if (now.secondstime() >= dst_start.secondstime() && now.secondstime() < dst_end.secondstime())
+          now = now + TimeSpan(0, 1, 0, 0);
 
     byte currentPos = 4;
     char timeString[8];
