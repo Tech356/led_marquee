@@ -2,7 +2,6 @@
 
 #include "LedArray.h"
 #include <Wire.h>
-#include "Chronodot.h"
 
 //Green:  2 Serial
 //Yellow: 3 Clock
@@ -24,7 +23,8 @@ const byte sw3Pin = 11;
 
 
 LedArray Display(DataPin, ClockPin, LatchPin);
-Chronodot chronodot = Chronodot();
+
+RTC_DS3231 rtc;
 
 bool DisplayTime = true;
 
@@ -63,6 +63,12 @@ void setup() {
 
   Display.Begin();
   Serial.begin(38400);
+
+  if (!rtc.begin()) {
+    Serial.println("Couldn't find RTC");
+    while (1);
+  }
+  Serial.println("Setup Complete");
 }
 
 void loop() {
@@ -127,12 +133,12 @@ void Update() {
   Display.ClearBuffer();
 
   if (DisplayTime) {
-    chronodot.readTimeDate();
+    DateTime now = rtc.now();
 
     byte currentPos = 4;
     char timeString[8];
 
-    byte hours12 = chronodot.timeDate.hours % 12;
+    byte hours12 = now.hour() % 12;
     if (hours12 == 0)
       hours12 = 12;
 
@@ -152,36 +158,36 @@ void Update() {
     Display.DrawString(":", 1, currentPos);
     currentPos += 6;
 
-    if (chronodot.timeDate.minutes < 10) {
+    if (now.minute() < 10) {
       Display.DrawString("0", 1, currentPos);
       currentPos += 6;
-      Display.DrawString(NumberToChar(chronodot.timeDate.minutes), 1, currentPos);
+      Display.DrawString(NumberToChar(now.minute()), 1, currentPos);
       currentPos += 6;
     }
     else {
-      Display.DrawString(NumberToChar(chronodot.timeDate.minutes / 10), 1, currentPos);
+      Display.DrawString(NumberToChar(now.minute() / 10), 1, currentPos);
       currentPos += 6;
-      Display.DrawString(NumberToChar(chronodot.timeDate.minutes % 10), 1, currentPos);
+      Display.DrawString(NumberToChar(now.minute() % 10), 1, currentPos);
       currentPos += 6;
     }
 
     Display.DrawString(":", 1, currentPos);
     currentPos += 6;
 
-    if (chronodot.timeDate.seconds < 10) {
+    if (now.second() < 10) {
       Display.DrawString("0", 1, currentPos);
       currentPos += 6;
-      Display.DrawString(NumberToChar(chronodot.timeDate.seconds), 1, currentPos);
+      Display.DrawString(NumberToChar(now.second()), 1, currentPos);
       currentPos += 6;
     }
     else {
-      Display.DrawString(NumberToChar(chronodot.timeDate.seconds / 10), 1, currentPos);
+      Display.DrawString(NumberToChar(now.second() / 10), 1, currentPos);
       currentPos += 6;
-      Display.DrawString(NumberToChar(chronodot.timeDate.seconds % 10), 1, currentPos);
+      Display.DrawString(NumberToChar(now.second() % 10), 1, currentPos);
       currentPos += 6;
     }
 
-    if (chronodot.timeDate.hours < 12)
+    if (now.hour() < 12)
       Display.DrawString(" AM", 3, currentPos);
     else
       Display.DrawString(" PM", 3, currentPos);

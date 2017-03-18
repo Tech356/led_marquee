@@ -8,7 +8,7 @@
 #include <avr/pgmspace.h>
 #include <string.h>
 
-#include "WProgram.h"
+#include "Arduino.h"
 
 #if defined(_DRAW_METHOD_1_)
 
