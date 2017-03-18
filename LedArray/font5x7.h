@@ -13,7 +13,7 @@
 //*****************************************************************************
 
 #ifndef FONT5X7_H
-#define FONT5X7_H 
+#define FONT5X7_H
 
 // standard ascii 5x7 font
 // defines ascii characters 0x20-0x7F (32-127)

@@ -12,9 +12,9 @@ void LedArray::Begin() {
   pinMode(dataPin, OUTPUT);
   pinMode(clockPin, OUTPUT);
   pinMode(latchPin, OUTPUT);
-  
+
   ClearBuffer();
-  Show();    
+  Show();
 }
 
 // sets the buffer to 0
@@ -28,23 +28,23 @@ void LedArray::ClearBuffer() {
 void LedArray::Show() {
   for(int y = 0; y < 7; y++)
   {
-    digitalWrite(latchPin, 0);  
+    digitalWrite(latchPin, 0);
     for(int x = 0; x < 72; x += 8)
     {
       byte column;
-      
-      for (int offset = 0; offset < 8; offset++)        
+
+      for (int offset = 0; offset < 8; offset++)
         bitWrite(column, offset, !buffer[x + offset][y]);
-      
+
       shiftOut(dataPin, clockPin, LSBFIRST, column);
     }
 
     //start with 11111111 which turns off all rows
     byte row = 255;
     //write a Zero to the row we want to update
-    bitWrite(row, 7 - y, 0);    
+    bitWrite(row, 7 - y, 0);
     shiftOut(dataPin, clockPin, LSBFIRST, row);
-    
+
     digitalWrite(latchPin, 1);
   }
 }
@@ -56,7 +56,7 @@ void LedArray::Show() {
     // {
       // if (x > 71 || y > 6 || x < 0 || y < 0)
         // continue;
-        
+
       // buffer[x][y] = sprite.Texture.read(x - sprite.PosX, y - sprite.PosY);
     // }
 // }
@@ -66,7 +66,7 @@ void LedArray::DrawString(char text[], byte textLength, int PosX) {
   #if defined(_DRAW_METHOD_1_)
   drawString_1(text, textLength, PosX);
   #endif
-  
+
   #if defined(_DRAW_METHOD_2_)
   drawString_2(text, textLength, PosX);
   #endif
@@ -83,7 +83,7 @@ void LedArray::drawString_1(char text[], byte textLength, int PosX) {
   for (int i = 0; i < textLength; i++)
   {
     uint8_t len = get_char_len(text[i]);
-    
+
     for (int x = 0; x < len; x++)
     {
       if (pos <= 71 || pos >= 0)
@@ -229,7 +229,7 @@ char_entry LedArray::font_table[128] = {
   {0,0},
 
 };
- 
+
 prog_uint8_t LedArray::font_data[FONT_DATA_SIZE] = {
 0x5f,
 0x1c,
@@ -424,12 +424,12 @@ prog_uint8_t LedArray::font_data[FONT_DATA_SIZE] = {
 0x43,
 
 };
- 
+
 uint8_t LedArray::get_char_len(uint8_t c) {
   return font_table[c].len;
   //return pgm_read_byte(&(font_table[c].len));
 }
- 
+
 bool LedArray::get_char_bit(uint8_t c, uint8_t row, uint8_t column) {
   uint8_t offset = font_table[c].offset;
   uint8_t col = font_data[offset+column];
@@ -449,19 +449,19 @@ bool LedArray::get_char_bit(uint8_t c, uint8_t row, uint8_t column) {
 void LedArray::drawString_2(char text[], byte textLength, int PosX) {
   if (PosX > 71)
     return;
-        
+
   int pos = PosX;
 
   for (int i = 0; i < textLength; i++)
-  {      
+  {
     //all characters have a length of 5
     uint8_t len = 5;
-    
+
     for (uint8_t x = 0; x < len; x++)
-    {    
+    {
       if (pos > 71)
         return;
-        
+
       if (pos <= 71 && pos >= 0)
       {
         // 0x20 is the start of printable characters
@@ -476,7 +476,7 @@ void LedArray::drawString_2(char text[], byte textLength, int PosX) {
     if (text[i] == ' ')
       pos--;
     else
-      pos++;    
+      pos++;
   }
 }
 

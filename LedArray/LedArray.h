@@ -40,8 +40,8 @@ class LedArray
     boolean buffer[72][7];
     byte dataPin;
     byte clockPin;
-    byte latchPin;    
-    
+    byte latchPin;
+
     //First Method for displaying chars
     #if defined(_DRAW_METHOD_1_)
     void drawString_1(char string[], byte textLength, int PosX);
@@ -49,9 +49,9 @@ class LedArray
     bool get_char_bit(uint8_t c, uint8_t row, uint8_t column);
     static char_entry font_table[128];
     static prog_uint8_t font_data[FONT_DATA_SIZE];
-    #endif    
-    
-    //Second Method    
+    #endif
+
+    //Second Method
     #if defined(_DRAW_METHOD_2_)
     void drawString_2(char string[], byte textLength, int PosX);
     #endif
